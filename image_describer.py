@@ -1,10 +1,15 @@
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageTk
 import matplotlib.pyplot as plt
 from pickle import load
 from keras.models import load_model
 from keras.preprocessing.sequence import pad_sequences
 from keras.applications.xception import Xception
+import tkinter as tk
+from tkinter import filedialog
+from tkinter.filedialog import askopenfile
+import os
+from gtts import gTTS
 
 def extract_features(filename, model):
     try:
@@ -42,15 +47,43 @@ def generate_desc(model, tokenizer, photo, max_length):
             break
     return in_text
 
+def predict_model(filename):
+    max_length = 34
+    tokenizer = load(open("tokenizer.p",'rb'))
+    model = load_model('models/model_9.h5')
+    xception_model = Xception(include_top = False, pooling = 'avg')
+    photo = extract_features(filename, xception_model)
+    description = generate_desc(model, tokenizer, photo, max_length)
+    print("\nGenerating description...\n")
+    print('Predicted description : {} \n'.format(description))
+    print('Google GTTS audio...')
+    audio_description = ' '.join(description.split(' ')[1:-1])
+    text_to_speech(audio_description)
 
-file_name = 'Flicker8k_Dataset/2356574282_5078f08b58.jpg'
-max_length = 34
-tokenizer = load(open("tokenizer.p",'rb'))
-model = load_model('models/model_1.h5')
-xception_model = Xception(include_top = False, pooling = 'avg')
-photo = extract_features(file_name, xception_model)
-img = Image.open(file_name)
-description = generate_desc(model, tokenizer, photo, max_length)
-print("\n\n")
-print(description)
-plt.imshow(img)
+def text_to_speech(text):
+    speech = gTTS(text)
+    speech_file = 'speech.mp3'
+    speech.save(speech_file)
+    os.system('afplay ' + speech_file)
+
+window = tk.Tk()
+window.geometry("500x500")  # Size of the window 
+window.title('Image Describer')
+my_font1=('times', 18, 'bold')
+l1 = tk.Label(window,text='Image Describer',width=30,font=my_font1,bg='#fff', fg='#f00')  
+l1.grid(row=1,column=1)
+b1 = tk.Button(window, text='Upload Image', 
+   width=20,command = lambda:upload_file())
+b1.grid(row=2,column=1) 
+
+def upload_file():
+    global img
+    f_types = [('Jpg Files', '*.jpg')]
+    filename = filedialog.askopenfilename(filetypes=f_types)
+    print(filename)
+    img = ImageTk.PhotoImage(file=filename)
+    b2 =tk.Button(window,image=img) # using Button 
+    b2.grid(row=3,column=1)
+    predict_model(filename)
+
+window.mainloop()
